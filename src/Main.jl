@@ -1,0 +1,82 @@
+using ArgParse, Graphs
+
+include("Model.jl")
+include("Util.jl")
+
+
+function run(input=ARGS)
+    settings = ArgParseSettings()
+
+    @add_arg_table settings begin
+        "instance"
+        help = "Path to the graph instance file"
+        required = true
+        "k"
+        help = "Number of nodes in the minimal spanning tree"
+        arg_type = Int
+        required = true
+        "cec"
+        help = "Model k-MST using cycle elimination constraints"
+        action = :command
+        "dcc"
+        help = "Model k-MST using directed cutset constraints"
+        action = :command
+    end
+
+    args = parse_args(input, settings)
+
+    graph = read_instance(args["instance"])
+    formulation = args["%COMMAND%"]
+    model = create_model(graph, formulation)
+
+    optimize!(model)
+
+
+    # 1. Number of Variables
+    all_vars = all_variables(model)
+    num_total = num_variables(model)
+    num_cont = count(is_binary.(all_vars) .== false .&& is_integer.(all_vars) .== false)
+    num_int = count(is_integer.(all_vars))
+    num_bin = count(is_binary.(all_vars))
+
+    # 2. Number of Constraints
+    # This counts all constraints (linear, bound constraints, etc.)
+    num_cons = num_constraints(model, count_variable_in_set_constraints=true)
+
+    # 3. Runtime and Memory
+    runtime = solve_time(model)
+    max_mem = MOI.get(model, Gurobi.ModelAttribute("MaxMemUsed"))
+
+    # 4. Branch-and-Bound Nodes
+    node_count = MOI.get(model, MOI.NodeCount())
+
+    # 5. Optimal Objective Value
+    obj_val = objective_value(model)
+
+    # --- Summary Output ---
+    println("Model Statistics:")
+    println("Variables: $num_total (Continuous: $num_cont, Integer: $num_int, Binary: $num_bin)")
+    println("Constraints: $num_cons")
+    println("Runtime: $(round(runtime, digits=2))s")
+    println("Max Memory: $(max_mem) GB")
+    println("B&B Nodes: $node_count")
+    println("Objective Value: $obj_val")
+
+    @show termination_status(model)
+    @show primal_status(model)
+
+    x_val = value.(model[:x])
+
+    # some plotting or something
+end
+
+function run(input::String)
+    run([String(s) for s in split(input, " ")])
+end
+
+
+function (@main)(ARGS)
+    run(ARGS)
+
+    return 0
+end
