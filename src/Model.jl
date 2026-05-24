@@ -14,16 +14,31 @@ function create_model(graph::SimpleWeightedGraph, formulation)
         ),
     )
 
+
     model = Model(() -> Gurobi.Optimizer(env))
 
     state = State(model, graph)
 
     # nv = number of vertices
     n = nv(graph)
+    e = ne(graph)
 
     # General Constraints
-    @variable(model, x[1:n, 1:n], Bin)
-    @objective(model, Min, sum(x[i, j] for i in 1:n for j in 1:n if i != j))
+
+    # 13f 14e
+    @variable(model, x[1:e] ≥ 0)
+    # 13g 14f
+    arc_idxs = Iterators.flatten([[(edge.src, edge.dst), (edge.dst, edge.src)] for edge in edges(graph)])
+    @variable(model, y[arc_idxs], Bin)
+    # 13e 14d
+    @constraint(model, [(e, edge) in enumerate(edges(graph))], x[e] == y[(edge.src, edge.dst)] + y[(edge.dst, edge.src)])
+
+    # 13d 14c
+    @constraint(model, sum(y[idx] for idx in arc_idxs) == n - 1)
+
+    # 13a 14a
+    @objective(model, Min, sum(edge.weight * x[e] for (e, edge) in enumerate(edges(graph))))
+
 
     if formulation == "cec"
         set_attribute(model, MOI.LazyConstraintCallback(), cb_data -> cec_callback(cb_data, state))
