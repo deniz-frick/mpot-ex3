@@ -27,7 +27,7 @@ function run(input=ARGS)
 
     graph = read_instance(args["instance"])
     formulation = args["%COMMAND%"]
-    state = create_model(graph, formulation)
+    state = create_model(graph, args["k"], formulation)
     model = state.model
     optimize!(model)
 
