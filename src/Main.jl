@@ -27,30 +27,22 @@ function run(input=ARGS)
 
     graph = read_instance(args["instance"])
     formulation = args["%COMMAND%"]
-    model = create_model(graph, formulation)
-
+    state = create_model(graph, formulation)
+    model = state.model
     optimize!(model)
 
 
-    # 1. Number of Variables
+    # Solver Info:
     all_vars = all_variables(model)
     num_total = num_variables(model)
     num_cont = count(is_binary.(all_vars) .== false .&& is_integer.(all_vars) .== false)
     num_int = count(is_integer.(all_vars))
     num_bin = count(is_binary.(all_vars))
-
-    # 2. Number of Constraints
-    # This counts all constraints (linear, bound constraints, etc.)
     num_cons = num_constraints(model, count_variable_in_set_constraints=true)
-
-    # 3. Runtime and Memory
     runtime = solve_time(model)
     max_mem = MOI.get(model, Gurobi.ModelAttribute("MaxMemUsed"))
-
-    # 4. Branch-and-Bound Nodes
     node_count = MOI.get(model, MOI.NodeCount())
-
-    # 5. Optimal Objective Value
+    gap = relative_gap(model)
     obj_val = objective_value(model)
 
     # --- Summary Output ---
@@ -60,6 +52,8 @@ function run(input=ARGS)
     println("Runtime: $(round(runtime, digits=2))s")
     println("Max Memory: $(max_mem) GB")
     println("B&B Nodes: $node_count")
+    println("Lazy Constraints added: $(state.constraint_added_by_callback)")
+    println("Gap: $gap")
     println("Objective Value: $obj_val")
 
     @show termination_status(model)
