@@ -1,7 +1,7 @@
 name = "MathProgEx3"
 uuid = "269500f1-c96b-40c6-a332-05678080f275"
 version = "0.1.0"
-authors = ["Deniz Frick <deniz.frick@student.tuwien.ac.at>"]
+authors = ["Deniz Frick <deniz.frick@student.tuwien.ac.at>", "Felix Odelga <felix.odelga@student.tuwien.ac.at>"]
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
