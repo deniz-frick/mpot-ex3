@@ -1,4 +1,4 @@
-using ArgParse, Graphs
+using ArgParse, Graphs, SimpleWeightedGraphs
 
 include("Model.jl")
 include("Util.jl")
@@ -31,7 +31,13 @@ function run(input=ARGS)
     model = state.model
     optimize!(model)
 
-
+    # println("===== Kruskal MST =====")
+    # mst_edges = kruskal_mst(graph)
+    # @show mst_edges
+    # W = weights(graph)
+    # obj_val = sum(W[src(e), dst(e)] for e in mst_edges)
+    # @show obj_val
+    println("===== k-MST =====")
     # Solver Info:
     all_vars = all_variables(model)
     num_total = num_variables(model)
@@ -60,7 +66,13 @@ function run(input=ARGS)
     @show primal_status(model)
 
     x_val = value.(model[:x])
+    y_val = value.(model[:y])
 
+    for (idx, val) in zip(axes(y_val, 1), y_val)
+        if val > 0.5
+            println(idx, " => ", val)
+        end
+    end
     # some plotting or something
 end
 

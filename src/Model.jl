@@ -1,4 +1,4 @@
-using JuMP, Gurobi, Graphs, SimpleWeightedGraphs
+using JuMP, Gurobi, Graphs, SimpleWeightedGraphs, GraphsFlows
 
 mutable struct State
     model::Model
@@ -9,9 +9,9 @@ State(model::Model, graph::SimpleWeightedGraph) = State(model, graph, 0)
 
 function create_model(graph::SimpleWeightedGraph, k, formulation)
     env = Gurobi.Env(
-        Dict{String,Any}(
-            "OutputFlag" => 0,
-        ),
+    # Dict{String,Any}(
+    #     "OutputFlag" => 0,
+    # ),
     )
 
 
@@ -60,8 +60,12 @@ function create_model(graph::SimpleWeightedGraph, k, formulation)
         set_attribute(model, MOI.LazyConstraintCallback(), cb_data -> dcc_callback(cb_data, state))
 
         # Directed Cutset Constraints
+        @variable(model, z[1:n], Bin)
+        @constraint(model, sum(z[i] for i in 1:n) == k)
+        @constraint(model, [v in 1:n], z[v] ≥ y[(0, v)] + sum(y[(u, v)] for u in inneighbors(graph, v)))
 
 
+        @constraint(model, [j in 1:n], y[(0, j)] + sum(y[(i, j)] for i in inneighbors(graph, j)) ≤ 1)
     else
         error("Invalid formulation")
     end
@@ -92,8 +96,64 @@ function cec_callback(cb_data::Gurobi.CallbackData, state::State)
 end
 
 function dcc_callback(cb_data::Gurobi.CallbackData, state::State)
-    @show typeof(cb_data)
-    @show state.graph
+    # lazy constraints are of the form 
+    # ∀ S ⊂ V with 0 ∈ S, ∀ v ∉ S
+    # ∑ x_e exiting cut ≥ indegree(v)
+    # @constraint(model, sum(y[(i, j)] for (i, j) in cut ≥ sum(y[(u, v)] for u in inneighbors(graph, v))))
 
-    state.constraint_added_by_callback += 1
+    graph = state.graph
+    model = state.model
+    status = callback_node_status(cb_data, model)
+
+    if status == MOI.CALLBACK_NODE_STATUS_INTEGER || status == MOI.CALLBACK_NODE_STATUS_FRACTIONAL
+        # build graph
+        y = model[:y]
+        z = model[:z]
+        y_val = callback_value.(cb_data, y)
+
+        n = nv(graph)
+        # for mincut, we 'remap' 0 to n+1
+        source = n + 1
+        artificial_arc_idxs = [(source, node) for node in 1:n]
+        arc_idxs = Iterators.flatten([[(edge.src, edge.dst), (edge.dst, edge.src)] for edge in edges(graph)])
+        digra = SimpleDiGraphFromIterator(Edge.(Iterators.flatten([arc_idxs, artificial_arc_idxs])))
+
+        capacity = zeros(Float64, n + 1, n + 1)
+
+        for (u, v) in Iterators.flatten([arc_idxs, artificial_arc_idxs])
+            if u == source
+                uvar = 0
+            else
+                uvar = u
+            end
+            capacity[u, v] = y_val[(uvar, v)]
+        end
+
+        epsilon = 1e-5
+        capacity_clean = max.(capacity, 0.0)
+        capacity_clean[capacity_clean.<epsilon] .= 0.0
+        capacity_clean[abs.(capacity_clean .- 1.0).<epsilon] .= 1.0
+
+        for target in 1:n
+            part_a, part_b, flow = GraphsFlows.mincut(digra, source, target, capacity_clean, EdmondsKarpAlgorithm())
+
+            if flow < 1
+                cut_edges = [(u, v) for (u, v) in Iterators.flatten([arc_idxs, artificial_arc_idxs])
+                             if u in part_a && v in part_b]
+
+                if isempty(cut_edges)
+                    @error "graph seemingly not connected"
+                end
+
+                cut_edges = [(u == source ? 0 : u, v) for (u, v) in cut_edges]
+
+                con = @build_constraint(
+                    sum(y[(u, v)] for (u, v) in cut_edges) >= z[target]
+                )
+
+                state.constraint_added_by_callback += 1
+                MOI.submit(model, MOI.LazyConstraint(cb_data), con)
+            end
+        end
+    end
 end
