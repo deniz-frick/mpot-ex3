@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.6"
+julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "230d3c72157ba5604a24f8973c92ac09b56bb77e"
+project_hash = "d727be54f2d7a94567fc9f988cb2d9ad634ffe92"
 
 [[deps.ArgParse]]
 deps = ["Logging", "TextWrap"]
@@ -103,6 +103,12 @@ version = "1.14.0"
     [deps.Graphs.weakdeps]
     Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
     SharedArrays = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
+
+[[deps.GraphsFlows]]
+deps = ["Graphs", "JuMP", "LinearAlgebra", "Markdown", "SimpleTraits", "SparseArrays"]
+git-tree-sha1 = "c00a68bafabb86a79b88d82b400dcecf653450f7"
+uuid = "06909019-6f44-4949-96fc-b9d9aaa02889"
+version = "0.1.1"
 
 [[deps.Gurobi]]
 deps = ["Gurobi_jll", "Libdl", "MathOptInterface", "PrecompileTools"]
@@ -220,7 +226,7 @@ version = "1.51.0"
     CliqueTrees = "60701a23-6482-424a-84db-faee86b9b1f8"
 
 [[deps.MathProgEx3]]
-deps = ["ArgParse", "Graphs", "Gurobi", "JuMP"]
+deps = ["ArgParse", "Graphs", "Gurobi", "JuMP", "SimpleWeightedGraphs"]
 path = "."
 uuid = "269500f1-c96b-40c6-a332-05678080f275"
 version = "0.1.0"
