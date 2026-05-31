@@ -50,8 +50,10 @@ function create_model(graph::SimpleWeightedGraph, k, formulation)
     if formulation == "cec"
         set_attribute(model, MOI.LazyConstraintCallback(), cb_data -> cec_callback(cb_data, state))
 
-        # 13c with a twist for kmeans
-        @constraint(model, [j in 1:n], sum(y[(i, j)] for i in inneighbors(graph, j)) ≤ 1)
+        # 13c in spirit
+        # Forbid loose paths (toghether with no cycles = connectednes)
+        # at least as many incoming edges as outgoing ones
+        @constraint(model, [b in 1:n], sum(y[(a, b)] for a in inneighbors(graph, b)) + y[(0, b)] >= sum(y[(b, c)] for c in outneighbors(graph, b)))
 
 
 
@@ -96,7 +98,7 @@ function cec_callback(cb_data::Gurobi.CallbackData, state::State)
 end
 
 function dcc_callback(cb_data::Gurobi.CallbackData, state::State)
-    # lazy constraints are of the form 
+    # lazy constraints are of the form
     # ∀ S ⊂ V with 0 ∈ S, ∀ v ∉ S
     # ∑ x_e exiting cut ≥ indegree(v)
     # @constraint(model, sum(y[(i, j)] for (i, j) in cut ≥ sum(y[(u, v)] for u in inneighbors(graph, v))))
