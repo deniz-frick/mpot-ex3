@@ -1,4 +1,4 @@
-using ArgParse, Graphs, SimpleWeightedGraphs
+using ArgParse, Graphs, SimpleWeightedGraphs, GraphPlot, Compose, Colors
 
 include("Model.jl")
 include("Util.jl")
@@ -8,6 +8,9 @@ function run(input=ARGS)
     settings = ArgParseSettings()
 
     @add_arg_table settings begin
+        "--plot"
+        help = "Enable plotting the resulting graph"
+        action = :store_true
         "instance"
         help = "Path to the graph instance file"
         required = true
@@ -25,9 +28,11 @@ function run(input=ARGS)
 
     args = parse_args(input, settings)
 
-    graph = read_instance(args["instance"])
+    instance_file = args["instance"]
+    graph = read_instance(instance_file)
     formulation = args["%COMMAND%"]
-    state = create_model(graph, args["k"], formulation)
+    k = args["k"]
+    state = create_model(graph, k, formulation)
     model = state.model
     optimize!(model)
 
@@ -68,12 +73,38 @@ function run(input=ARGS)
     x_val = value.(model[:x])
     y_val = value.(model[:y])
 
+    n = nv(graph)
+    args["plot"] && (nodecolor = [colorant"lightgray" for _ in 1:n])
+
     for (idx, val) in zip(axes(y_val, 1), y_val)
         if val > 0.5
             println(idx, " => ", val)
+            if args["plot"] && idx[1] * idx[2] > 0
+                nodecolor[idx[1]] = nodecolor[idx[2]] = colorant"orange"
+            end
+
         end
     end
-    # some plotting or something
+
+    println(x_val)
+
+    # Plotting
+
+    if args["plot"]
+        nodelabel = collect(1:n)
+        edgecolor = map(x -> x > 0 ? colorant"orange" : colorant"lightgray", x_val)
+        edgelabelcolor = map(x -> x > 0 ? colorant"red" : colorant"black", x_val)
+        edgesize = map(x -> x > 0 ? 1.0 : 0.2, x_val)
+        plot = gplot(graph,
+            background_color=colorant"white",
+            nodelabel=nodelabel,
+            nodefillc=nodecolor,
+            edgelabel=[e.weight for e in edges(graph)],
+            edgelabelc=edgelabelcolor,
+            edgelabelsize=edgesize,
+            edgestrokec=edgecolor)
+        draw(SVG("plots/graph_$(nv(graph))_$(formulation)_$(k).svg", sqrt(nv(graph)) * 5cm, sqrt(nv(graph)) * 5cm), plot)
+    end
 end
 
 function run(input::String)
