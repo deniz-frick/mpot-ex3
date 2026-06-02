@@ -51,9 +51,10 @@ function create_model(graph::SimpleWeightedGraph, k, formulation)
         set_attribute(model, MOI.LazyConstraintCallback(), cb_data -> cec_callback(cb_data, state))
 
         # 13c in spirit
-        # Forbid loose paths (toghether with no cycles = connectednes)
-        # at least as many incoming edges as outgoing ones
-        @constraint(model, [b in 1:n], sum(y[(a, b)] for a in inneighbors(graph, b)) + y[(0, b)] >= sum(y[(b, c)] for c in outneighbors(graph, b)))
+        #only one incoming
+        @constraint(model, [b in 1:n], sum(y[(a, b)] for a in inneighbors(graph, b)) + y[(0, b)] <= 1)
+        # need to have an inneighbour to have outneigbours
+        @constraint(model, [b in 1:n], (sum(y[(a, b)] for a in inneighbors(graph, b)) + y[(0, b)]) * k >= sum(y[(b, c)] for c in outneighbors(graph, b)))
 
 
 
