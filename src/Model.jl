@@ -79,14 +79,25 @@ end
 function cec_callback(cb_data::Gurobi.CallbackData, state::State)
     graph = state.graph
     model = state.model
+    status = callback_node_status(cb_data, model)
+
     y = model[:y]
 
     y_val = callback_value.(cb_data, y)
     edges = [idx for (idx, val) in zip(axes(y_val)[1], y_val) if val > 0]
-    @show edges
+
     minigraph = SimpleDiGraphFromIterator(Edge.(edges))
     for cycle in simplecycles(minigraph)
         edges = zip(cycle, vcat(cycle[2:end], cycle[1]))
+
+        if status == MOI.CALLBACK_NODE_STATUS_FRACTIONAL
+            activation_sum = sum(y_val[edge] for edge in edges)
+            if activation_sum <= length(edges) - 1
+                #println("Refrained from adding unviolated cut")
+                continue
+            end
+        end
+
         # would be better to use x instead of y to block the other direction aswell
         con = @build_constraint(
             sum(y[edge] for edge in edges) <= length(edges) - 1
