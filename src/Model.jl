@@ -103,7 +103,7 @@ function cec_callback(cb_data::Gurobi.CallbackData, state::State)
         con = @build_constraint(
             sum(y[edge] for edge in edges) <= length(edges) - 1
         )
-        println("Adding $(con)")
+        #println("Adding $(con)")
         MOI.submit(model, MOI.LazyConstraint(cb_data), con)
         state.constraint_added_by_callback += 1
     end

@@ -86,7 +86,7 @@ function run(input=ARGS)
         end
     end
 
-    println(x_val)
+    #println(x_val)
 
     # Plotting
 
