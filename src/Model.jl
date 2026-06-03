@@ -28,7 +28,7 @@ function create_model(graph::SimpleWeightedGraph, k, formulation)
     # General Constraints
 
     # 13f 14e
-    @variable(model, x[1:e] ≥ 0)
+    @variable(model, x[1:e], Bin)
 
     # 13g 14f
     artificial_arc_idxs = [(0, node) for node in 1:n]
