@@ -7,14 +7,17 @@ mutable struct State
 end
 State(model::Model, graph::SimpleWeightedGraph) = State(model, graph, 0)
 
-function create_model(graph::SimpleWeightedGraph, k, formulation)
-    env = Gurobi.Env(
-    # Dict{String,Any}(
-    #     "OutputFlag" => 0,
-    # ),
-    )
+function create_model(graph::SimpleWeightedGraph, k, formulation; threads::Union{Int,Nothing}=Nothing, mem_limit::Union{Float64,Nothing}=Nothing)
+    settings = Dict{String,Any}()
 
+    if !isnothing(threads)
+        settings["Threads"] = threads
+    end
+    if !isnothing(mem_limit)
+        settings["SoftMemLimit"] = mem_limit
+    end
 
+    env = Gurobi.Env()
     model = Model(() -> Gurobi.Optimizer(env))
 
 

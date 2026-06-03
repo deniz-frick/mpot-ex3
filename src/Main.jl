@@ -1,3 +1,4 @@
+using Colors: default_brettel_neutral
 using ArgParse, Graphs, SimpleWeightedGraphs, GraphPlot, Compose, Colors
 
 include("Model.jl")
@@ -11,6 +12,19 @@ function run(input=ARGS)
         "--plot"
         help = "Enable plotting the resulting graph"
         action = :store_true
+        "--csv", "-c"
+        help = "path to a csv file, run data will be saved to"
+        arg_type = String
+        "--time", "-t"
+        help = "time limit in seconds"
+        arg_type = Int
+        "--mem", "-m"
+        help = "memory limit in seconds"
+        arg_type = Int
+        "--threads"
+        help = "number of threads to use"
+        arg_type = Int
+        default = 1
         "instance"
         help = "Path to the graph instance file"
         required = true
@@ -32,8 +46,13 @@ function run(input=ARGS)
     graph = read_instance(instance_file)
     formulation = args["%COMMAND%"]
     k = args["k"]
-    state = create_model(graph, k, formulation)
+    state = create_model(graph, k, formulation, threads=args["threads"], mem_limit=args["mem"])
     model = state.model
+    start_num_cons = num_constraints(model, count_variable_in_set_constraints=true)
+
+    !isnothing(args["time"]) && set_time_limit_sec(model, args["time"])
+
+
     optimize!(model)
 
     # println("===== Kruskal MST =====")
@@ -69,6 +88,11 @@ function run(input=ARGS)
 
     @show termination_status(model)
     @show primal_status(model)
+    if !isnothing(args["csv"])
+        open(args["csv"], "a"; lock=true) do csv
+            print(csv, "$num_total, $num_cont, $num_int, $num_bin, $start_num_cons, $runtime, $max_mem, $node_count, $(state.constraint_added_by_callback), $obj_val, $gap")
+        end
+    end
 
     x_val = value.(model[:x])
     y_val = value.(model[:y])
