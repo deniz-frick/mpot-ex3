@@ -101,14 +101,25 @@ function run(input=ARGS)
     n = nv(graph)
     args["plot"] && (nodecolor = [colorant"lightgray" for _ in 1:n])
 
+    checklist = []
     for (idx, val) in zip(axes(y_val, 1), y_val)
         if val > 0.5
             println(idx, " => ", val)
+
+            push!(checklist, Edge(idx[1],idx[2]))
             if args["plot"] && idx[1] * idx[2] > 0
                 nodecolor[idx[1]] = nodecolor[idx[2]] = colorant"orange"
             end
 
         end
+    end
+
+    check = SimpleGraphFromIterator(checklist)
+    correct = is_tree(check)
+    if correct
+        println("Solution is a tree")
+    else
+        error("Solution IS NOT A TREE")
     end
 
     #println(x_val)
