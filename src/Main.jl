@@ -20,7 +20,7 @@ function run(input=ARGS)
         arg_type = Int
         "--mem", "-m"
         help = "memory limit in seconds"
-        arg_type = Int
+        arg_type = Float64
         "--threads"
         help = "number of threads to use"
         arg_type = Int
@@ -90,7 +90,8 @@ function run(input=ARGS)
     @show primal_status(model)
     if !isnothing(args["csv"])
         open(args["csv"], "a"; lock=true) do csv
-            print(csv, "$num_total, $num_cont, $num_int, $num_bin, $start_num_cons, $runtime, $max_mem, $node_count, $(state.constraint_added_by_callback), $obj_val, $gap")
+            file_name = split(split(instance_file,"/")[end],".")[1]
+            print(csv, "$file_name, $k, $num_total, $num_cont, $num_int, $num_bin, $start_num_cons, $runtime, $max_mem, $node_count, $(state.constraint_added_by_callback), $obj_val, $gap\n")
         end
     end
 
@@ -138,6 +139,5 @@ end
 
 function (@main)(ARGS)
     run(ARGS)
-
     return 0
 end

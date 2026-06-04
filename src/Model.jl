@@ -17,7 +17,7 @@ function create_model(graph::SimpleWeightedGraph, k, formulation; threads::Union
         settings["SoftMemLimit"] = mem_limit
     end
 
-    env = Gurobi.Env()
+    env = Gurobi.Env(settings)
     model = Model(() -> Gurobi.Optimizer(env))
 
 
