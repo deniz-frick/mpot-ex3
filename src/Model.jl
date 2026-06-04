@@ -122,19 +122,23 @@ function dcc_callback(cb_data::Gurobi.CallbackData, state::State)
     model = state.model
     status = callback_node_status(cb_data, model)
 
-    if status == MOI.CALLBACK_NODE_STATUS_INTEGER || status == MOI.CALLBACK_NODE_STATUS_FRACTIONAL
+    if status == MOI.CALLBACK_NODE_STATUS_INTEGER #|| status == MOI.CALLBACK_NODE_STATUS_FRACTIONAL
         # build graph
         y = model[:y]
         z = model[:z]
         y_val = callback_value.(cb_data, y)
+        z_val = callback_value.(cb_data, z)
 
         n = nv(graph)
         # for mincut, we 'remap' 0 to n+1
         source = n + 1
         artificial_arc_idxs = [(source, node) for node in 1:n]
         arc_idxs = Iterators.flatten([[(edge.src, edge.dst), (edge.dst, edge.src)] for edge in edges(graph)])
-        digra = SimpleDiGraphFromIterator(Edge.(Iterators.flatten([arc_idxs, artificial_arc_idxs])))
 
+        digra = SimpleDiGraph(n + 1)
+        for (u, v) in Iterators.flatten([arc_idxs, artificial_arc_idxs])
+            add_edge!(digra, u, v)
+        end
         capacity = zeros(Float64, n + 1, n + 1)
 
         for (u, v) in Iterators.flatten([arc_idxs, artificial_arc_idxs])
@@ -152,9 +156,13 @@ function dcc_callback(cb_data::Gurobi.CallbackData, state::State)
         capacity_clean[abs.(capacity_clean .- 1.0).<epsilon] .= 1.0
 
         for target in 1:n
+            if z_val[target] <= epsilon
+                continue
+            end
+
             part_a, part_b, flow = GraphsFlows.mincut(digra, source, target, capacity_clean, EdmondsKarpAlgorithm())
 
-            if flow < 1
+            if flow < z_val[target] - epsilon
                 cut_edges = [(u, v) for (u, v) in Iterators.flatten([arc_idxs, artificial_arc_idxs])
                              if u in part_a && v in part_b]
 
