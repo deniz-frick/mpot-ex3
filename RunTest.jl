@@ -22,6 +22,22 @@ threads = 1
 include("src/Main.jl")
 
 function (@main)(ARGS)
+    println("=================== Warmup ===================")
+    for (denominator, (instance, k), formulation) in Iterators.product(
+        denominators, instances[1:2], formulations
+    )
+        @show (formulation, (instance, k), denominator)
+        command = (
+            "--time $time_limit " *
+            "--mem $mem_limit " *
+            "--threads $threads " *
+            "$instance $(Int(ceil(k/denominator))) $formulation"
+        )
+        @show command
+        run(command)
+    end
+
+    println("=================== Test Runs ===================")
     for (denominator, (instance, k), formulation) in Iterators.product(
         denominators, instances, formulations
     )
