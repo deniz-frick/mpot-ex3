@@ -13,7 +13,6 @@ instances = [
 
 denominators = [5,2]
 formulations = ["cec", "dcc"]
-formulations = ["cec"]
 
 time_limit = 60 * 60 * 2  # 2 hours
 mem_limit = 8.0           # 8 gb
