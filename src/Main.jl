@@ -90,7 +90,7 @@ function run(input=ARGS)
     @show primal_status(model)
     if !isnothing(args["csv"])
         open(args["csv"], "a"; lock=true) do csv
-            file_name = split(split(instance_file,"/")[end],".")[1]
+            file_name = split(split(instance_file, "/")[end], ".")[1]
             print(csv, "$file_name, $k, $num_total, $num_cont, $num_int, $num_bin, $start_num_cons, $runtime, $max_mem, $node_count, $(state.constraint_added_by_callback), $obj_val, $gap\n")
         end
     end
@@ -101,12 +101,20 @@ function run(input=ARGS)
     n = nv(graph)
     args["plot"] && (nodecolor = [colorant"lightgray" for _ in 1:n])
 
+    translate = Dict{Int, Int}()
     checklist = []
     for (idx, val) in zip(axes(y_val, 1), y_val)
         if val > 0.5
             println(idx, " => ", val)
 
-            push!(checklist, Edge(idx[1],idx[2]))
+            if !haskey(translate,idx[1])
+                translate[idx[1]] = length(translate) + 1
+            end
+            if !haskey(translate,idx[2])
+                translate[idx[2]] = length(translate) + 1
+            end
+
+            push!(checklist, Edge(translate[idx[1]], translate[idx[2]]))
             if args["plot"] && idx[1] * idx[2] > 0
                 nodecolor[idx[1]] = nodecolor[idx[2]] = colorant"orange"
             end
