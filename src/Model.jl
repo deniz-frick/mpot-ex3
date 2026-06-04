@@ -122,7 +122,7 @@ function dcc_callback(cb_data::Gurobi.CallbackData, state::State)
     model = state.model
     status = callback_node_status(cb_data, model)
 
-    if status == MOI.CALLBACK_NODE_STATUS_INTEGER #|| status == MOI.CALLBACK_NODE_STATUS_FRACTIONAL
+    if status == MOI.CALLBACK_NODE_STATUS_INTEGER || status == MOI.CALLBACK_NODE_STATUS_FRACTIONAL
         # build graph
         y = model[:y]
         z = model[:z]
