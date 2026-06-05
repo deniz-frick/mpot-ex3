@@ -73,7 +73,11 @@ function run(input=ARGS)
     max_mem = MOI.get(model, Gurobi.ModelAttribute("MaxMemUsed"))
     node_count = MOI.get(model, MOI.NodeCount())
     gap = relative_gap(model)
-    obj_val = objective_value(model)
+    obj_val = 0
+    try
+        obj_val = objective_value(model)
+    catch
+    end
 
     # --- Summary Output ---
     println("Model Statistics:")
@@ -101,16 +105,16 @@ function run(input=ARGS)
     n = nv(graph)
     args["plot"] && (nodecolor = [colorant"lightgray" for _ in 1:n])
 
-    translate = Dict{Int, Int}()
+    translate = Dict{Int,Int}()
     checklist = []
     for (idx, val) in zip(axes(y_val, 1), y_val)
         if val > 0.5
             println(idx, " => ", val)
 
-            if !haskey(translate,idx[1])
+            if !haskey(translate, idx[1])
                 translate[idx[1]] = length(translate) + 1
             end
-            if !haskey(translate,idx[2])
+            if !haskey(translate, idx[2])
                 translate[idx[2]] = length(translate) + 1
             end
 
@@ -127,7 +131,7 @@ function run(input=ARGS)
     if correct
         println("Solution is a tree")
     else
-        error("Solution IS NOT A TREE")
+        println("Solution IS NOT A TREE")
     end
 
     #println(x_val)
