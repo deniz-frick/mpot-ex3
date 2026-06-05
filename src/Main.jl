@@ -99,59 +99,63 @@ function run(input=ARGS)
         end
     end
 
-    x_val = value.(model[:x])
-    y_val = value.(model[:y])
+    try
+        x_val = value.(model[:x])
+        y_val = value.(model[:y])
 
-    n = nv(graph)
-    args["plot"] && (nodecolor = [colorant"lightgray" for _ in 1:n])
+        n = nv(graph)
+        args["plot"] && (nodecolor = [colorant"lightgray" for _ in 1:n])
 
-    translate = Dict{Int,Int}()
-    checklist = []
-    for (idx, val) in zip(axes(y_val, 1), y_val)
-        if val > 0.5
-            println(idx, " => ", val)
+        translate = Dict{Int,Int}()
+        checklist = []
+        for (idx, val) in zip(axes(y_val, 1), y_val)
+            if val > 0.5
+                println(idx, " => ", val)
 
-            if !haskey(translate, idx[1])
-                translate[idx[1]] = length(translate) + 1
+                if !haskey(translate, idx[1])
+                    translate[idx[1]] = length(translate) + 1
+                end
+                if !haskey(translate, idx[2])
+                    translate[idx[2]] = length(translate) + 1
+                end
+
+                push!(checklist, Edge(translate[idx[1]], translate[idx[2]]))
+                if args["plot"] && idx[1] * idx[2] > 0
+                    nodecolor[idx[1]] = nodecolor[idx[2]] = colorant"orange"
+                end
+
             end
-            if !haskey(translate, idx[2])
-                translate[idx[2]] = length(translate) + 1
-            end
-
-            push!(checklist, Edge(translate[idx[1]], translate[idx[2]]))
-            if args["plot"] && idx[1] * idx[2] > 0
-                nodecolor[idx[1]] = nodecolor[idx[2]] = colorant"orange"
-            end
-
         end
-    end
 
-    check = SimpleGraphFromIterator(checklist)
-    correct = is_tree(check)
-    if correct
-        println("Solution is a tree")
-    else
-        println("Solution IS NOT A TREE")
-    end
+        check = SimpleGraphFromIterator(checklist)
+        correct = is_tree(check)
+        if correct
+            println("Solution is a tree")
+        else
+            println("Solution IS NOT A TREE")
+        end
 
-    #println(x_val)
+        #println(x_val)
 
-    # Plotting
+        # Plotting
 
-    if args["plot"]
-        nodelabel = collect(1:n)
-        edgecolor = map(x -> x > 0 ? colorant"orange" : colorant"lightgray", x_val)
-        edgelabelcolor = map(x -> x > 0 ? colorant"red" : colorant"black", x_val)
-        edgesize = map(x -> x > 0 ? 1.0 : 0.2, x_val)
-        plot = gplot(graph,
-            background_color=colorant"white",
-            nodelabel=nodelabel,
-            nodefillc=nodecolor,
-            edgelabel=[e.weight for e in edges(graph)],
-            edgelabelc=edgelabelcolor,
-            edgelabelsize=edgesize,
-            edgestrokec=edgecolor)
-        draw(SVG("plots/graph_$(nv(graph))_$(formulation)_$(k).svg", sqrt(nv(graph)) * 5cm, sqrt(nv(graph)) * 5cm), plot)
+        if args["plot"]
+            nodelabel = collect(1:n)
+            edgecolor = map(x -> x > 0 ? colorant"orange" : colorant"lightgray", x_val)
+            edgelabelcolor = map(x -> x > 0 ? colorant"red" : colorant"black", x_val)
+            edgesize = map(x -> x > 0 ? 1.0 : 0.2, x_val)
+            plot = gplot(graph,
+                background_color=colorant"white",
+                nodelabel=nodelabel,
+                nodefillc=nodecolor,
+                edgelabel=[e.weight for e in edges(graph)],
+                edgelabelc=edgelabelcolor,
+                edgelabelsize=edgesize,
+                edgestrokec=edgecolor)
+            draw(SVG("plots/graph_$(nv(graph))_$(formulation)_$(k).svg", sqrt(nv(graph)) * 5cm, sqrt(nv(graph)) * 5cm), plot)
+        end
+    catch e
+        print(e)
     end
 end
 

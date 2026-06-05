@@ -1,18 +1,18 @@
 instances = [
     ("instances/g01.dat",   10)
     ("instances/g02.dat",   20)
-    ("instances/g03.dat",   50)
-    ("instances/g04.dat",   70)
-    ("instances/g05.dat",  100)
-    ("instances/g06.dat",  200)
-    ("instances/g07.dat",  300)
+    #("instances/g03.dat",   50)
+    #("instances/g04.dat",   70)
+    #("instances/g05.dat",  100)
+    #("instances/g06.dat",  200)
+    #("instances/g07.dat",  300)
     ("instances/g08.dat",  400)
     ("instances/g09.dat", 1000)
     ("instances/g10.dat", 2000)
 ]
 
 denominators = [5, 2]
-formulations = ["cec", "dcc"]
+formulations = ["dcc"]
 
 time_limit = 60 * 60 * 2  # 2 hours
 mem_limit = 8.0           # 8 gb
