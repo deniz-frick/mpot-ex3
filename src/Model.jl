@@ -68,7 +68,9 @@ function create_model(graph::SimpleWeightedGraph, k, formulation; threads::Union
         # Directed Cutset Constraints
         @variable(model, z[1:n], Bin)
         @constraint(model, sum(z[i] for i in 1:n) == k)
+        @constraint(model, [v in 1:n], sum(y[(v, w)] for w in outneighbors(graph, v)) <= (k - 1) * z[v])
         @constraint(model, [v in 1:n], z[v] ≥ y[(0, v)] + sum(y[(u, v)] for u in inneighbors(graph, v)))
+        @constraint(model, [v in 1:n], z[v] ≤ y[(0, v)] + sum(y[(u, v)] for u in inneighbors(graph, v)))
 
 
         @constraint(model, [j in 1:n], y[(0, j)] + sum(y[(i, j)] for i in inneighbors(graph, j)) ≤ 1)
@@ -113,72 +115,61 @@ function cec_callback(cb_data::Gurobi.CallbackData, state::State)
 end
 
 function dcc_callback(cb_data::Gurobi.CallbackData, state::State)
-    # lazy constraints are of the form
-    # ∀ S ⊂ V with 0 ∈ S, ∀ v ∉ S
-    # ∑ x_e exiting cut ≥ indegree(v)
-    # @constraint(model, sum(y[(i, j)] for (i, j) in cut ≥ sum(y[(u, v)] for u in inneighbors(graph, v))))
+    status = callback_node_status(cb_data, state.model)
+    if !(status in (MOI.CALLBACK_NODE_STATUS_INTEGER, MOI.CALLBACK_NODE_STATUS_FRACTIONAL))
+        return
+    end
 
     graph = state.graph
     model = state.model
-    status = callback_node_status(cb_data, model)
+    y = model[:y]
+    z = model[:z]
 
-    if status == MOI.CALLBACK_NODE_STATUS_INTEGER || status == MOI.CALLBACK_NODE_STATUS_FRACTIONAL
-        # build graph
-        y = model[:y]
-        z = model[:z]
-        y_val = callback_value.(cb_data, y)
-        z_val = callback_value.(cb_data, z)
+    y_val = callback_value.(cb_data, y)
+    z_val = callback_value.(cb_data, z)
 
-        n = nv(graph)
-        # for mincut, we 'remap' 0 to n+1
-        source = n + 1
-        artificial_arc_idxs = [(source, node) for node in 1:n]
-        arc_idxs = Iterators.flatten([[(edge.src, edge.dst), (edge.dst, edge.src)] for edge in edges(graph)])
+    eps = 1e-4
+    n = nv(graph)
+    artificial_root = n + 1
 
-        digra = SimpleDiGraph(n + 1)
-        for (u, v) in Iterators.flatten([arc_idxs, artificial_arc_idxs])
-            add_edge!(digra, u, v)
-        end
-        capacity = zeros(Float64, n + 1, n + 1)
+    flow_graph = SimpleDiGraph(n + 1)
+    capacity_matrix = zeros(Float64, n + 1, n + 1)
 
-        for (u, v) in Iterators.flatten([arc_idxs, artificial_arc_idxs])
-            if u == source
-                uvar = 0
-            else
-                uvar = u
-            end
-            capacity[u, v] = y_val[(uvar, v)]
-        end
+    for j in 1:n
+        add_edge!(flow_graph, artificial_root, j)
+        capacity_matrix[artificial_root, j] = max(0.0, y_val[(0, j)])
+    end
 
-        epsilon = 1e-5
-        capacity_clean = max.(capacity, 0.0)
-        capacity_clean[capacity_clean.<epsilon] .= 0.0
-        capacity_clean[abs.(capacity_clean .- 1.0).<epsilon] .= 1.0
+    for edge in edges(graph)
+        add_edge!(flow_graph, edge.src, edge.dst)
+        add_edge!(flow_graph, edge.dst, edge.src)
+        capacity_matrix[edge.src, edge.dst] = max(0.0, y_val[(edge.src, edge.dst)])
+        capacity_matrix[edge.dst, edge.src] = max(0.0, y_val[(edge.dst, edge.src)])
+    end
 
-        for target in 1:n
-            if z_val[target] <= epsilon
-                continue
-            end
+    for representative in 1:n
+        z_val[representative] > eps || continue
 
-            part_a, part_b, flow = GraphsFlows.mincut(digra, source, target, capacity_clean, EdmondsKarpAlgorithm())
+        _, sink_partition, cut_value = GraphsFlows.mincut(
+            flow_graph,
+            artificial_root,
+            representative,
+            capacity_matrix,
+            GraphsFlows.EdmondsKarpAlgorithm(),
+        )
+        cut_value >= z_val[representative] - eps && continue
 
-            if flow < z_val[target] - epsilon
-                cut_edges = [(u, v) for (u, v) in Iterators.flatten([arc_idxs, artificial_arc_idxs])
-                             if u in part_a && v in part_b]
+        S = Set(v for v in sink_partition if v <= n)
+        isempty(S) && continue
 
-                if isempty(cut_edges)
-                    @error "graph seemingly not connected"
-                end
+        incoming = [(u, j) for j in S for u in [0; inneighbors(graph, j)] if !(u in S)]
+        isempty(incoming) && continue
 
-                cut_edges = [(u == source ? 0 : u, v) for (u, v) in cut_edges]
+        lhs_val = sum(y_val[(u, v)] for (u, v) in incoming)
+        lhs_val >= z_val[representative] - eps && continue
 
-                con = @build_constraint(
-                    sum(y[(u, v)] for (u, v) in cut_edges) >= z[target]
-                )
-
-                state.constraint_added_by_callback += 1
-                MOI.submit(model, MOI.LazyConstraint(cb_data), con)
-            end
-        end
+        con = @build_constraint(sum(y[(u, v)] for (u, v) in incoming) >= z[representative])
+        MOI.submit(model, MOI.LazyConstraint(cb_data), con)
+        state.constraint_added_by_callback += 1
     end
 end
